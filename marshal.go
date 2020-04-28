@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"reflect"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -20,7 +21,7 @@ const (
 
 // MarshalText marshals values to text ion.
 func MarshalText(v interface{}) ([]byte, error) {
-	buf := bytes.Buffer{}
+	buf := strings.Builder{}
 	w := NewTextWriterOpts(&buf, TextWriterQuietFinish)
 	e := Encoder{
 		w:    w,
@@ -34,7 +35,7 @@ func MarshalText(v interface{}) ([]byte, error) {
 		return nil, err
 	}
 
-	return buf.Bytes(), nil
+	return []byte(buf.String()), nil
 }
 
 // MarshalBinary marshals values to binary ion.
