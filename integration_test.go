@@ -1,3 +1,18 @@
+/*
+ * Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * A copy of the License is located at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+
 package ion
 
 import (
@@ -120,24 +135,24 @@ func binaryRoundTrip(t *testing.T, fp string) {
 	b := loadFile(t, fp)
 
 	// Make a binary writer from the file
-	br := NewReaderBytes(b)
+	r := NewReaderBytes(b)
 	buf := bytes.Buffer{}
 	bw := NewBinaryWriter(&buf)
-	writeToWriterFromReader(t, br, bw)
+	writeToWriterFromReader(t, r, bw)
 	bw.Finish()
 
 	// Make a text writer from the binary writer
-	r := NewReaderBytes(buf.Bytes())
+	r = NewReaderBytes(buf.Bytes())
 	str := strings.Builder{}
-	w := NewTextWriter(&str)
-	writeToWriterFromReader(t, r, w)
-	w.Finish()
+	tw := NewTextWriter(&str)
+	writeToWriterFromReader(t, r, tw)
+	tw.Finish()
 
 	// Make another binary writer using the text writer
-	br2 := NewReaderStr(str.String())
+	r = NewReaderStr(str.String())
 	buf2 := bytes.Buffer{}
 	bw2 := NewBinaryWriter(&buf2)
-	writeToWriterFromReader(t, br2, bw2)
+	writeToWriterFromReader(t, r, bw2)
 	bw2.Finish()
 
 	// Compare the 2 binary writers
@@ -149,29 +164,29 @@ func binaryRoundTrip(t *testing.T, fp string) {
 func textRoundTrip(t *testing.T, fp string) {
 	b := loadFile(t, fp)
 
-	// Make a binary writer from the file
+	// Make a text writer from the file
 	r := NewReaderBytes(b)
 	str := strings.Builder{}
-	w := NewTextWriter(&str)
-	writeToWriterFromReader(t, r, w)
-	w.Finish()
+	tw := NewTextWriter(&str)
+	writeToWriterFromReader(t, r, tw)
+	tw.Finish()
 
-	// Make a text writer from the binary writer
-	br := NewReaderStr(str.String())
+	// Make a binary writer from the text writer
+	r = NewReaderStr(str.String())
 	buf := bytes.Buffer{}
 	bw := NewBinaryWriter(&buf)
-	writeToWriterFromReader(t, br, bw)
+	writeToWriterFromReader(t, r, bw)
 	bw.Finish()
 
-	// Make another binary writer using the text writer
-	r2 := NewReaderBytes(buf.Bytes())
+	// Make another text writer using the binary writer
+	r = NewReaderBytes(buf.Bytes())
 	str2 := strings.Builder{}
-	w2 := NewTextWriter(&str2)
-	writeToWriterFromReader(t, r2, w2)
-	w2.Finish()
+	tw2 := NewTextWriter(&str2)
+	writeToWriterFromReader(t, r, tw2)
+	tw2.Finish()
 
 	//compare the 2 text writers
-	if !reflect.DeepEqual(w, w2) {
+	if !reflect.DeepEqual(tw, tw2) {
 		t.Errorf("Round trip test failed on: " + fp)
 	}
 }
