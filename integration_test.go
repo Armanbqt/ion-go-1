@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -17,7 +17,9 @@ package ion
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -28,6 +30,7 @@ import (
 type testingFunc func(t *testing.T, path string)
 
 const goodPath = "ion-tests/iontestdata/good"
+const badPath = "ion-tests/iontestdata/bad"
 
 var binaryRoundTripSkipList = []string{
 	"allNulls.ion",
@@ -119,6 +122,8 @@ var textRoundTripSkipList = []string{
 	"zeroFloats.ion",
 }
 
+var malformedSkipList = []string{}
+
 func TestBinaryRoundTrip(t *testing.T) {
 	readFilesAndTest(t, goodPath, binaryRoundTripSkipList, func(t *testing.T, path string) {
 		binaryRoundTrip(t, path)
@@ -128,6 +133,12 @@ func TestBinaryRoundTrip(t *testing.T) {
 func TestTextRoundTrip(t *testing.T) {
 	readFilesAndTest(t, goodPath, textRoundTripSkipList, func(t *testing.T, path string) {
 		textRoundTrip(t, path)
+	})
+}
+
+func TestLoadBad(t *testing.T) {
+	readFilesAndTest(t, badPath, malformedSkipList, func(t *testing.T, path string) {
+		testLoadBad(t, path)
 	})
 }
 
@@ -189,6 +200,40 @@ func textRoundTrip(t *testing.T, fp string) {
 	if !reflect.DeepEqual(tw, tw2) {
 		t.Errorf("Round trip test failed on: " + fp)
 	}
+}
+
+func testLoadBad(t *testing.T, fp string) {
+	file, er := os.Open(fp)
+	if er != nil {
+		t.Fatal(er)
+	}
+	defer file.Close()
+
+	r := NewReader(file)
+
+	err := testBrokenReader(t, r)
+
+	if r.Err() == nil && err == nil {
+		t.Fatal("Should have failed loading \"" + fp + "\".")
+	} else {
+		fmt.Println("expectedly failed loading " + r.Err().Error())
+	}
+}
+
+func testBrokenReader(t *testing.T, r Reader) error {
+	for r.Next() {
+		switch r.Type() {
+		case StructType, ListType, SexpType:
+			r.StepIn()
+			testBrokenReader(t, r)
+			r.StepOut()
+		}
+	}
+	if r.Err() != nil {
+		return r.Err()
+	}
+
+	return nil
 }
 
 func readFilesAndTest(t *testing.T, path string, skipList []string, tf testingFunc) {
