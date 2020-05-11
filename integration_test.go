@@ -17,7 +17,6 @@ package ion
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -122,7 +121,129 @@ var textRoundTripSkipList = []string{
 	"zeroFloats.ion",
 }
 
-var malformedSkipList = []string{}
+var malformedIonsSkipList = []string{
+	"annotationLengthTooLongContainer.10n",
+	"annotationLengthTooLongScalar.10n",
+	"annotationLengthTooShortContainer.10n",
+	"annotationLengthTooShortScalar.10n",
+	"annotationNested.10n",
+	"annotationSymbolIDUnmapped.10n",
+	"annotationSymbolIDUnmapped.ion",
+	"binaryIntWithMultipleUnderscores.ion",
+	"binaryIntWithTrailingUnderscore.ion",
+	"binaryIntWithUnderscoreAfterRadixPrefix.ion",
+	"blobLenTooLarge.10n",
+	"clobLenTooLarge.10n",
+	"clobWithLongLiteralBlockCommentAtEnd.ion",
+	"clobWithLongLiteralCommentsInMiddle.ion",
+	"clobWithNonAsciiCharacter.ion",
+	"clobWithNonAsciiCharacterMultiline.ion",
+	"clobWithNullCharacter.ion",
+	"clobWithValidUtf8ButNonAsciiCharacter.ion",
+	"clob_2.ion",
+	"clob_U0000003F.ion",
+	"clob_U00000080.ion",
+	"clob_U0000013F.ion",
+	"clob_u0020.ion",
+	"clob_u00FF.ion",
+	"clob_u01FF.ion",
+	"dateDaysInMonth_1.ion",
+	"dateDaysInMonth_2.ion",
+	"dateDaysInMonth_3.ion",
+	"dateDaysInMonth_4.ion",
+	"dateDaysInMonth_5.ion",
+	"day_1.ion",
+	"day_2.ion",
+	"decimalLenTooLarge.10n",
+	"decimalWithMultipleUnderscores.ion",
+	"decimalWithTrailingUnderscore.ion",
+	"decimalWithUnderscoreBeforeDecimalPoint.ion",
+	"emptyAnnotatedInt.10n",
+	"fieldNameSymbolIDUnmapped.10n",
+	"fieldNameSymbolIDUnmapped.ion",
+	"floatLenTooLarge.10n",
+	"hexIntWithMultipleUnderscores.ion",
+	"hexIntWithTrailingUnderscore.ion",
+	"hexIntWithUnderscoreAfterRadixPrefix.ion",
+	"intWithMultipleUnderscores.ion",
+	"intWithTrailingUnderscore.ion",
+	"invalidVersionMarker_ion_0_0.ion",
+	"invalidVersionMarker_ion_1234_0.ion",
+	"invalidVersionMarker_ion_1_1.ion",
+	"invalidVersionMarker_ion_2_0.ion",
+	"leapDayNonLeapYear_1.10n",
+	"leapDayNonLeapYear_1.ion",
+	"leapDayNonLeapYear_2.10n",
+	"localSymbolTableImportNegativeMaxId.ion",
+	"localSymbolTableImportNonIntegerMaxId.ion",
+	"localSymbolTableImportNullMaxId.ion",
+	"localSymbolTableWithMultipleImportsFields.ion",
+	"localSymbolTableWithMultipleSymbolsAndImportsFields.ion",
+	"localSymbolTableWithMultipleSymbolsFields.10n",
+	"localSymbolTableWithMultipleSymbolsFields.ion",
+	"longStringRawControlCharacter.ion",
+	"minLongWithLenTooLarge.10n",
+	"minLongWithLenTooSmall.10n",
+	"month_1.ion",
+	"month_2.ion",
+	"negativeIntZero.10n",
+	"negativeIntZeroLn.10n",
+	"nopPadTooShort.10n",
+	"nopPadWithAnnotations.10n",
+	"nullDotCommentInt.ion",
+	"offsetHours_1.ion",
+	"offsetHours_2.ion",
+	"offsetMinutes_1.ion",
+	"offsetMinutes_2.ion",
+	"offsetMinutes_3.ion",
+	"sexpOperatorAnnotation.ion",
+	"stringLenTooLarge.10n",
+	"stringRawControlCharacter.ion",
+	"stringWithLatinEncoding.10n",
+	"structOrderedEmpty.10n",
+	"surrogate_1.ion",
+	"surrogate_10.ion",
+	"surrogate_2.ion",
+	"surrogate_4.ion",
+	"surrogate_5.ion",
+	"surrogate_6.ion",
+	"surrogate_7.ion",
+	"surrogate_8.ion",
+	"surrogate_9.ion",
+	"symbolIDUnmapped.10n",
+	"symbolIDUnmapped.ion",
+	"symbolLenTooLarge.10n",
+	"timestampHourWithoutMinute.10n",
+	"timestampLenTooLarge.10n",
+	"timestampSept31.10n",
+	"timestamp_0000-00-00.ion",
+	"timestamp_0000-00-00T.ion",
+	"timestamp_0000-00-01.ion",
+	"timestamp_0000-00-01T.ion",
+	"timestamp_0000-00T.ion",
+	"timestamp_0000-01-00.ion",
+	"timestamp_0000-01-00T.ion",
+	"timestamp_0000-01-01.ion",
+	"timestamp_0000-01-01T.ion",
+	"timestamp_0000-01T.ion",
+	"timestamp_0000-12-31.ion",
+	"timestamp_0000T.ion",
+	"timestamp_0001-00-00.ion",
+	"timestamp_0001-00-00T.ion",
+	"timestamp_0001-00-01.ion",
+	"timestamp_0001-00-01T.ion",
+	"timestamp_0001-00T.ion",
+	"timestamp_0001-01-00.ion",
+	"timestamp_0001-01-00T.ion",
+	"timestamp_10.ion",
+	"timestamp_11.ion",
+	"timestamp_5.ion",
+	"timestamp_6.ion",
+	"timestamp_7.ion",
+	"timestamp_8.ion",
+	"timestamp_9.ion",
+	"year_3.ion",
+}
 
 func TestBinaryRoundTrip(t *testing.T) {
 	readFilesAndTest(t, goodPath, binaryRoundTripSkipList, func(t *testing.T, path string) {
@@ -137,7 +258,7 @@ func TestTextRoundTrip(t *testing.T) {
 }
 
 func TestLoadBad(t *testing.T) {
-	readFilesAndTest(t, badPath, malformedSkipList, func(t *testing.T, path string) {
+	readFilesAndTest(t, badPath, malformedIonsSkipList, func(t *testing.T, path string) {
 		testLoadBad(t, path)
 	})
 }
@@ -216,7 +337,7 @@ func testLoadBad(t *testing.T, fp string) {
 	if r.Err() == nil && err == nil {
 		t.Fatal("Should have failed loading \"" + fp + "\".")
 	} else {
-		fmt.Println("expectedly failed loading " + r.Err().Error())
+		t.Log("expectedly failed loading " + r.Err().Error())
 	}
 }
 
