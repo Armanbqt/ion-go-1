@@ -18,6 +18,7 @@ package ion
 import (
 	"bytes"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -28,6 +29,8 @@ import (
 type testingFunc func(t *testing.T, path string)
 
 const goodPath = "ion-tests/iontestdata/good"
+const equivsPath = "ion-tests/iontestdata/good/equivs"
+const nonEquivsPath = "ion-tests/iontestdata/good/non-equivs"
 
 var binaryRoundTripSkipList = []string{
 	"allNulls.ion",
@@ -119,6 +122,49 @@ var textRoundTripSkipList = []string{
 	"zeroFloats.ion",
 }
 
+var equivsSkipList = []string{
+	"annotatedIvms.ion",
+	"bigInts.ion",
+	"clobs.ion",
+	"keywordPrefixes.ion",
+	"localSymbolTableAppend.ion",
+	"localSymbolTableNullSlots.ion",
+	"localSymbolTableWithAnnotations.ion",
+	"localSymbolTables.ion",
+	"localSymbolTablesValuesWithAnnotations.ion",
+	"nonIVMNoOps.ion",
+	"stringUtf8.ion",
+	"strings.ion",
+	"systemSymbols.ion",
+	"timestampSuperfluousOffset.10n",
+	"timestamps.ion",
+	"timestampsLargeFractionalPrecision.ion",
+}
+
+var nonEquivsSkipList = []string{
+	"annotatedIvms.ion",
+	"annotations.ion",
+	"blobs.ion",
+	"bools.ion",
+	"clobs.ion",
+	"decimals.ion",
+	"documents.ion",
+	"floats.ion",
+	"floatsVsDecimals.ion",
+	"ints.ion",
+	"lists.ion",
+	"localSymbolTableWithAnnotations.ion",
+	"nonNulls.ion",
+	"nulls.ion",
+	"sexps.ion",
+	"strings.ion",
+	"structs.ion",
+	"symbolTables.ion",
+	"symbolTablesUnknownText.ion",
+	"symbols.ion",
+	"timestamps.ion",
+}
+
 func TestBinaryRoundTrip(t *testing.T) {
 	readFilesAndTest(t, goodPath, binaryRoundTripSkipList, func(t *testing.T, path string) {
 		binaryRoundTrip(t, path)
@@ -128,6 +174,18 @@ func TestBinaryRoundTrip(t *testing.T) {
 func TestTextRoundTrip(t *testing.T) {
 	readFilesAndTest(t, goodPath, textRoundTripSkipList, func(t *testing.T, path string) {
 		textRoundTrip(t, path)
+	})
+}
+
+func TestEquivalency(t *testing.T) {
+	readFilesAndTest(t, equivsPath, equivsSkipList, func(t *testing.T, path string) {
+		testEquivalency(t, path, true)
+	})
+}
+
+func TestNonEquivalency(t *testing.T) {
+	readFilesAndTest(t, nonEquivsPath, nonEquivsSkipList, func(t *testing.T, path string) {
+		testEquivalency(t, path, false)
 	})
 }
 
@@ -188,6 +246,47 @@ func textRoundTrip(t *testing.T, fp string) {
 	//compare the 2 text writers
 	if !reflect.DeepEqual(tw, tw2) {
 		t.Errorf("Round trip test failed on: " + fp)
+	}
+}
+
+func testEquivalency(t *testing.T, fp string, eq bool) {
+	file, er := os.Open(fp)
+	if er != nil {
+		t.Fatal(er)
+	}
+	defer file.Close()
+
+	r := NewReader(file)
+	for r.Next() {
+		switch r.Type() {
+		case StructType, ListType, SexpType:
+			var values []interface{}
+			r.StepIn()
+			for r.Next() {
+				values = append(values, eqv(t, r))
+			}
+			equivalencyAssertion(t, values, eq)
+			r.StepOut()
+		}
+	}
+	if r.Err() != nil {
+		t.Error()
+	}
+}
+
+func equivalencyAssertion(t *testing.T, values []interface{}, eq bool) {
+	for _, val1 := range values {
+		for _, val2 := range values {
+			if eq {
+				if !reflect.DeepEqual(val1, val2) {
+					t.Error("Equivalency test failed. All values should interpret equal.")
+				}
+			} else {
+				if reflect.DeepEqual(val1, val2) {
+					t.Error("Non-Equivalency test failed. Values should not interpret equal.")
+				}
+			}
+		}
 	}
 }
 
@@ -370,4 +469,90 @@ func writeToWriterFromReader(t *testing.T, r Reader, w Writer) {
 	if r.Err() != nil {
 		t.Errorf(r.Err().Error())
 	}
+}
+
+func eqv(t *testing.T, r Reader) interface{} {
+	switch r.Type() {
+	case NullType:
+		return textNulls[NoType]
+
+	case BoolType:
+		val, err := r.BoolValue()
+		if err != nil {
+			t.Errorf("Something went wrong when reading Boolean value. " + err.Error())
+		}
+		return val
+
+	case IntType:
+		val, err := r.Int64Value()
+		if err != nil {
+			t.Errorf("Something went wrong when reading Int value. " + err.Error())
+		}
+		return val
+
+	case FloatType:
+		val, err := r.FloatValue()
+		if err != nil {
+			t.Errorf("Something went wrong when reading Float value. " + err.Error())
+		}
+		return val
+
+	case DecimalType:
+		val, err := r.DecimalValue()
+		if err != nil {
+			t.Errorf("Something went wrong when reading Decimal value. " + err.Error())
+		}
+		return val
+
+	case TimestampType:
+		val, err := r.TimeValue()
+		if err != nil {
+			t.Errorf("Something went wrong when reading Timestamp value. " + err.Error())
+		}
+		return val
+
+	case SymbolType:
+		val, err := r.StringValue()
+		if err != nil {
+			t.Errorf("Something went wrong when reading Symbol value. " + err.Error())
+		}
+		return val
+
+	case StringType:
+		val, err := r.StringValue()
+		if err != nil {
+			t.Errorf("Something went wrong when reading String value. " + err.Error())
+		}
+		return val
+
+	case ClobType:
+		val, err := r.ByteValue()
+		if err != nil {
+			t.Errorf("Something went wrong when reading Clob value. " + err.Error())
+		}
+		return val
+
+	case BlobType:
+		val, err := r.ByteValue()
+		if err != nil {
+			t.Errorf("Something went wrong when reading Blob value. " + err.Error())
+		}
+		return val
+
+	case SexpType:
+		r.StepIn()
+		eqv(t, r)
+		r.StepOut()
+
+	case ListType:
+		r.StepIn()
+		eqv(t, r)
+		r.StepOut()
+
+	case StructType:
+		r.StepIn()
+		eqv(t, r)
+		r.StepOut()
+	}
+	return nil
 }
