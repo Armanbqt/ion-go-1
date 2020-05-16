@@ -178,7 +178,7 @@ func TestTextRoundTrip(t *testing.T) {
 }
 
 func TestEquivalency(t *testing.T) {
-	readFilesAndTest(t, equivsPath, equivsSkipList, func(t *testing.T, path string) {
+	readFilesAndTest(t, equivsPath, nil, func(t *testing.T, path string) {
 		testEquivalency(t, path, true)
 	})
 }
@@ -258,12 +258,17 @@ func testEquivalency(t *testing.T, fp string, eq bool) {
 
 	r := NewReader(file)
 	for r.Next() {
+		embDoc := embeddedDoc(r.Annotations())
 		switch r.Type() {
 		case StructType, ListType, SexpType:
 			var values []interface{}
 			r.StepIn()
-			for r.Next() {
-				values = append(values, eqv(t, r))
+			if embDoc {
+				values = handleEmbDoc(t, r)
+			} else {
+				for r.Next() {
+					values = append(values, eqv(t, r))
+				}
 			}
 			equivalencyAssertion(t, values, eq)
 			r.StepOut()
@@ -272,6 +277,30 @@ func testEquivalency(t *testing.T, fp string, eq bool) {
 	if r.Err() != nil {
 		t.Error()
 	}
+}
+
+func handleEmbDoc(t *testing.T, r Reader) []interface{} {
+	var values []interface{}
+	for r.Next() {
+		str, err := r.StringValue()
+		if err != nil {
+			t.Error("Was supposed to be String arghhh")
+		}
+		newReader := NewReaderStr(str)
+		for newReader.Next() {
+			values = append(values, eqv(t, newReader))
+		}
+	}
+	return values
+}
+
+func embeddedDoc(an []string) bool {
+	for _, a := range an {
+		if a == "embedded_documents" {
+			return true
+		}
+	}
+	return false
 }
 
 func equivalencyAssertion(t *testing.T, values []interface{}, eq bool) {
@@ -472,6 +501,10 @@ func writeToWriterFromReader(t *testing.T, r Reader, w Writer) {
 }
 
 func eqv(t *testing.T, r Reader) interface{} {
+	//an := r.Annotations()
+	//if len(an) > 0 {
+	//	fmt.Println(an)
+	//}
 	switch r.Type() {
 	case NullType:
 		return textNulls[NoType]
